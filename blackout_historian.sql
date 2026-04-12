@@ -1,40 +1,37 @@
--- Create the Historian Database Schema
-CREATE TABLE node_telemetry (
+-- Drop tables if they exist for a clean slate
+DROP TABLE IF EXISTS incident_reports;
+DROP TABLE IF EXISTS grid_telemetry;
+
+-- Table for high-frequency grid telemetry ingestion
+CREATE TABLE grid_telemetry (
     telemetry_id SERIAL PRIMARY KEY,
-    node_id INT,
+    substation VARCHAR(50),
     voltage DECIMAL(10,2),
     frequency DECIMAL(10,2),
     load_kw DECIMAL(10,2),
+    breaker_status VARCHAR(20),
     recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE incident_logs (
-    log_id SERIAL PRIMARY KEY,
-    node_id INT,
-    threat_vector VARCHAR(100),
-    severity VARCHAR(50),
-    response_taken VARCHAR(100),
+-- Table for Forensic Logging
+CREATE TABLE incident_reports (
+    incident_id SERIAL PRIMARY KEY,
+    substation VARCHAR(50),
+    attack_type VARCHAR(100),
+    action_taken VARCHAR(100),
     logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- STRICT FORENSIC AUDITING: Prevent any modifications to the incident logs
-CREATE OR REPLACE FUNCTION prevent_tampering()
+-- INSIDER THREAT PROTECTION: Trigger to prevent deletion of forensic data
+CREATE OR REPLACE FUNCTION block_incident_deletion()
 RETURNS TRIGGER AS $$
 BEGIN
-    RAISE EXCEPTION 'SECURITY ALERT: Unauthorized attempt to tamper with immutable incident logs!';
+    RAISE EXCEPTION 'SECURITY BREACH: Deletion of forensic incident reports is strictly prohibited!';
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
--- Attach triggers to block UPDATE and DELETE simulating an immutable ledger
-CREATE TRIGGER enforce_immutability_update
-BEFORE UPDATE ON incident_logs
-FOR EACH ROW EXECUTE FUNCTION prevent_tampering();
-
-CREATE TRIGGER enforce_immutability_delete
-BEFORE DELETE ON incident_logs
-FOR EACH ROW EXECUTE FUNCTION prevent_tampering();
-
--- Insert baseline configuration
-INSERT INTO incident_logs (node_id, threat_vector, severity, response_taken) 
-VALUES (0, 'System Initialization', 'INFO', 'Grid monitoring active');
+-- Enforce the immutability on the incident_reports table
+CREATE TRIGGER enforce_audit_trail
+BEFORE DELETE ON incident_reports
+FOR EACH ROW EXECUTE FUNCTION block_incident_deletion();
